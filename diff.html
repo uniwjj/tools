@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本比对工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: #f7f9fc;
+            color: #333;
+            padding: 20px;
+            line-height: 1.5;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 25px;
+            background: #f0f4ff;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        label {
+            font-weight: bold;
+            color: #4b6eaf;
+        }
+        
+        textarea {
+            height: 150px;
+            padding: 15px;
+            background: white;
+            color: #333;
+            border: 2px solid #d0d9eb;
+            border-radius: 6px;
+            resize: vertical;
+            font-size: 14px;
+            line-height: 1.5;
+            transition: border-color 0.3s;
+            overflow: auto;
+        }
+        
+        textarea:focus {
+            border-color: #4b6eaf;
+            outline: none;
+        }
+        
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+            justify-content: flex-end;
+            min-width: 120px;
+        }
+        
+        button {
+            padding: 12px 25px;
+            background: #4b6eaf;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s, transform 0.2s;
+            width: 100%;
+            text-align: center;
+        }
+        
+        button:hover {
+            background: #3a5a9d;
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        #clear-btn {
+            background: #e74c3c;
+        }
+        
+        #clear-btn:hover {
+            background: #c0392b;
+        }
+        
+        .diff-container {
+            display: flex;
+            height: 500px;
+            overflow: hidden;
+        }
+        
+        .diff-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            padding: 15px;
+            background: #e8ecf7;
+            font-weight: bold;
+            color: #4b6eaf;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #d0d9eb;
+        }
+        
+        .diff-content {
+            display: flex;
+            overflow: auto;
+            background: white;
+            flex: 1;
+        }
+        
+        .line-numbers {
+            padding: 15px 10px;
+            background: #f5f7ff;
+            color: #6e7681;
+            text-align: right;
+            user-select: none;
+            border-right: 1px solid #e1e6f5;
+            line-height: 1.6;
+            font-size: 14px;
+            overflow-y: hidden;
+        }
+        
+        .code-content {
+            padding: 15px;
+            white-space: pre;
+            flex: 1;
+            overflow: auto;
+            line-height: 1.6;
+            tab-size: 4;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        .line {
+            min-height: 20px;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        
+        .deleted {
+            background-color: #ffeaea;
+            color: #d32f2f;
+        }
+        
+        .added {
+            background-color: #ebffeb;
+            color: #388e3c;
+        }
+        
+        .unchanged {
+            color: #333;
+        }
+        
+        .divider {
+            width: 1px;
+            background: #d0d9eb;
+            margin: 0 5px;
+        }
+        
+        .stats {
+            padding: 20px;
+            background: #f0f4ff;
+            text-align: center;
+            font-weight: bold;
+            color: #4b6eaf;
+            border-top: 1px solid #d0d9eb;
+        }
+        
+        @media (max-width: 768px) {
+            .diff-container {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .divider {
+                width: 100%;
+                height: 1px;
+                margin: 10px 0;
+            }
+            
+            .buttons {
+                flex-direction: row;
+                width: 100%;
+                justify-content: center;
+            }
+            
+            button {
+                width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <div class="input-group">
+                <label for="original">原始文本:</label>
+                <textarea id="original" placeholder="粘贴或输入原始文本..."></textarea>
+            </div>
+            
+            <div class="input-group">
+                <label for="modified">修改后文本:</label>
+                <textarea id="modified" placeholder="粘贴或输入修改后文本..."></textarea>
+            </div>
+            
+            <div class="buttons">
+                <button id="compare-btn">比对文本</button>
+                <button id="clear-btn">清空文本</button>
+            </div>
+        </div>
+        
+        <div class="diff-container">
+            <div class="diff-panel">
+                <div class="panel-header">
+                    <span>原始文本</span>
+                    <span id="original-stats">0 处差异</span>
+                </div>
+                <div class="diff-content">
+                    <div class="line-numbers" id="original-line-numbers"></div>
+                    <div class="code-content" id="original-code"></div>
+                </div>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <div class="diff-panel">
+                <div class="panel-header">
+                    <span>修改后文本</span>
+                    <span id="modified-stats">0 处差异</span>
+                </div>
+                <div class="diff-content">
+                    <div class="line-numbers" id="modified-line-numbers"></div>
+                    <div class="code-content" id="modified-code"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="stats" id="diff-stats">
+            总计: 0 处增加, 0 处删除, 0 处修改
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const originalTextarea = document.getElementById('original');
+            const modifiedTextarea = document.getElementById('modified');
+            const compareBtn = document.getElementById('compare-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            const originalCode = document.getElementById('original-code');
+            const modifiedCode = document.getElementById('modified-code');
+            const originalLineNumbers = document.getElementById('original-line-numbers');
+            const modifiedLineNumbers = document.getElementById('modified-line-numbers');
+            const originalStats = document.getElementById('original-stats');
+            const modifiedStats = document.getElementById('modified-stats');
+            const diffStats = document.getElementById('diff-stats');
+            
+            // 初始化示例文本比对
+            compareText();
+            
+            // 绑定事件
+            compareBtn.addEventListener('click', compareText);
+            clearBtn.addEventListener('click', clearText);
+            
+            // 改进的差异检测算法
+            function computeDiff(original, modified) {
+                const result = [];
+                let i = 0, j = 0;
+                
+                while (i < original.length || j < modified.length) {
+                    if (i < original.length && j < modified.length && original[i] === modified[j]) {
+                        // 行相同
+                        result.push({
+                            type: 'equal',
+                            originalLine: original[i],
+                            modifiedLine: modified[j]
+                        });
+                        i++;
+                        j++;
+                    } else {
+                        // 查找下一个匹配点
+                        let nextMatchInOriginal = -1;
+                        let nextMatchInModified = -1;
+                        
+                        // 在原始文本中查找与当前修改文本行匹配的行
+                        for (let k = i + 1; k < original.length; k++) {
+                            if (original[k] === modified[j]) {
+                                nextMatchInOriginal = k;
+                                break;
+                            }
+                        }
+                        
+                        // 在修改文本中查找与当前原始文本行匹配的行
+                        for (let k = j + 1; k < modified.length; k++) {
+                            if (modified[k] === original[i]) {
+                                nextMatchInModified = k;
+                                break;
+                            }
+                        }
+                        
+                        if (nextMatchInOriginal !== -1 && nextMatchInModified !== -1) {
+                            // 两边都有匹配，选择更近的匹配
+                            const distOriginal = nextMatchInOriginal - i;
+                            const distModified = nextMatchInModified - j;
+                            
+                            if (distOriginal < distModified) {
+                                // 添加删除操作直到匹配点
+                                while (i < nextMatchInOriginal) {
+                                    result.push({
+                                        type: 'delete',
+                                        originalLine: original[i]
+                                    });
+                                    i++;
+                                }
+                            } else {
+                                // 添加插入操作直到匹配点
+                                while (j < nextMatchInModified) {
+                                    result.push({
+                                        type: 'insert',
+                                        modifiedLine: modified[j]
+                                    });
+                                    j++;
+                                }
+                            }
+                        } else if (nextMatchInOriginal !== -1) {
+                            // 只在原始文本中有匹配
+                            while (i < nextMatchInOriginal) {
+                                result.push({
+                                    type: 'delete',
+                                    originalLine: original[i]
+                                });
+                                i++;
+                            }
+                        } else if (nextMatchInModified !== -1) {
+                            // 只在修改文本中有匹配
+                            while (j < nextMatchInModified) {
+                                result.push({
+                                    type: 'insert',
+                                    modifiedLine: modified[j]
+                                });
+                                j++;
+                            }
+                        } else {
+                            // 没有匹配，添加删除和插入操作
+                            if (i < original.length) {
+                                result.push({
+                                    type: 'delete',
+                                    originalLine: original[i]
+                                });
+                                i++;
+                            }
+                            
+                            if (j < modified.length) {
+                                result.push({
+                                    type: 'insert',
+                                    modifiedLine: modified[j]
+                                });
+                                j++;
+                            }
+                        }
+                    }
+                }
+                
+                return result;
+            }
+            
+            // 比对文本函数
+            function compareText() {
+                const originalText = originalTextarea.value;
+                const modifiedText = modifiedTextarea.value;
+                
+                const originalLines = originalText.split('\n');
+                const modifiedLines = modifiedText.split('\n');
+                
+                // 生成行号
+                generateLineNumbers(originalLines.length, originalLineNumbers);
+                generateLineNumbers(modifiedLines.length, modifiedLineNumbers);
+                
+                // 使用改进的算法计算差异
+                const diff = computeDiff(originalLines, modifiedLines);
+                
+                // 清空代码显示区域
+                originalCode.innerHTML = '';
+                modifiedCode.innerHTML = '';
+                
+                let added = 0;
+                let deleted = 0;
+                let changed = 0;
+                
+                // 生成差异显示
+                for (let i = 0; i < diff.length; i++) {
+                    const item = diff[i];
+                    
+                    if (item.type === 'equal') {
+                        originalCode.appendChild(createLine(item.originalLine, 'unchanged'));
+                        modifiedCode.appendChild(createLine(item.modifiedLine, 'unchanged'));
+                    } else if (item.type === 'delete') {
+                        deleted++;
+                        originalCode.appendChild(createLine(item.originalLine, 'deleted'));
+                        modifiedCode.appendChild(createLine('', 'unchanged'));
+                    } else if (item.type === 'insert') {
+                        added++;
+                        originalCode.appendChild(createLine('', 'unchanged'));
+                        modifiedCode.appendChild(createLine(item.modifiedLine, 'added'));
+                    }
+                }
+                
+                // 更新统计信息
+                originalStats.textContent = `${deleted} 处差异`;
+                modifiedStats.textContent = `${added} 处差异`;
+                diffStats.textContent = `总计: ${added} 处增加, ${deleted} 处删除`;
+            }
+            
+            // 生成行号
+            function generateLineNumbers(count, container) {
+                container.innerHTML = '';
+                for (let i = 1; i <= count; i++) {
+                    const lineNumber = document.createElement('div');
+                    lineNumber.className = 'line';
+                    lineNumber.textContent = i;
+                    container.appendChild(lineNumber);
+                }
+            }
+            
+            // 创建代码行元素
+            function createLine(text, className) {
+                const line = document.createElement('div');
+                line.className = `line ${className}`;
+                
+                // 处理空白行
+                if (text === '') {
+                    line.innerHTML = '&nbsp;';
+                } else {
+                    line.textContent = text;
+                }
+                
+                return line;
+            }
+            
+            // 清空文本函数
+            function clearText() {
+                originalTextarea.value = '';
+                modifiedTextarea.value = '';
+                originalCode.innerHTML = '';
+                modifiedCode.innerHTML = '';
+                originalLineNumbers.innerHTML = '';
+                modifiedLineNumbers.innerHTML = '';
+                originalStats.textContent = '0 处差异';
+                modifiedStats.textContent = '0 处差异';
+                diffStats.textContent = '总计: 0 处增加, 0 处删除, 0 处修改';
+            }
+            
+            // 同步滚动功能
+            const originalContent = document.querySelector('#original-code');
+            const modifiedContent = document.querySelector('#modified-code');
+            const originalLines = document.querySelector('#original-line-numbers');
+            const modifiedLines = document.querySelector('#modified-line-numbers');
+            
+            originalContent.addEventListener('scroll', function() {
+                modifiedContent.scrollTop = originalContent.scrollTop;
+                modifiedContent.scrollLeft = originalContent.scrollLeft;
+                modifiedLines.scrollTop = originalContent.scrollTop;
+            });
+            
+            modifiedContent.addEventListener('scroll', function() {
+                originalContent.scrollTop = modifiedContent.scrollTop;
+                originalContent.scrollLeft = modifiedContent.scrollLeft;
+                originalLines.scrollTop = modifiedContent.scrollTop;
+            });
+        });
+    </script>
+</body>
+</html>

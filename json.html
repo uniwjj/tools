@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON处理工具</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #ffffff;
+            color: #333333;
+            overflow: hidden;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-gap: 1px;
+            flex: 1;
+            overflow: hidden;
+            background-color: #e0e0e0;
+        }
+        
+        .panel {
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            padding: 12px 15px;
+            background-color: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .panel-title {
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        button {
+            padding: 6px 12px;
+            background-color: #4a86e8;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        button:hover {
+            background-color: #3a76d8;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        button.copy {
+            background-color: #4caf50;
+        }
+        
+        button.copy:hover {
+            background-color: #3d8b40;
+        }
+        
+        .panel-content {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+        }
+        
+        #json-input {
+            width: 100%;
+            height: 100%;
+            background-color: #fafafa;
+            color: #333;
+            border: none;
+            padding: 15px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            resize: none;
+            outline: none;
+            transition: all 0.2s;
+            border-right: 1px solid #eee;
+        }
+        
+        #json-input:focus {
+            background-color: #fff;
+            box-shadow: inset 0 0 0 1px #4a86e8;
+        }
+        
+        #json-display {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre;
+            overflow: auto;
+            padding: 15px;
+            background-color: #fff;
+        }
+        
+        .json-item {
+            display: block;
+            min-height: 18px;
+        }
+        
+        .json-block {
+            position: relative;
+            padding-left: 20px;
+        }
+        
+        .collapsible {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 16px;
+            height: 16px;
+            line-height: 14px;
+            text-align: center;
+            cursor: pointer;
+            user-select: none;
+            border: 1px solid #4caf50;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #4caf50;
+            background-color: transparent;
+            transition: all 0.2s;
+            z-index: 1;
+        }
+        
+        .collapsible:hover {
+            box-shadow: 0 0 3px rgba(0,0,0,0.2);
+        }
+        
+        .collapsed {
+            border-color: #f44336;
+            color: #f44336;
+        }
+        
+        .key {
+            color: #881391;
+        }
+        
+        .string {
+            color: #c41a16;
+        }
+        
+        .number {
+            color: #1c00cf;
+        }
+        
+        .boolean {
+            color: #0d22aa;
+        }
+        
+        .null {
+            color: #808080;
+        }
+        
+        .error {
+            color: #f44336;
+            font-weight: bold;
+        }
+        
+        .folded {
+            display: none;
+        }
+        
+        .status-bar {
+            padding: 8px 15px;
+            background-color: #f5f5f5;
+            font-size: 12px;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid #ddd;
+        }
+        
+        .error-message {
+            color: #f44336;
+            font-weight: 500;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">原始JSON</span>
+            </div>
+            <div class="panel-content">
+                <textarea id="json-input" placeholder="在此粘贴或输入JSON..." autofocus></textarea>
+            </div>
+            <div class="status-bar">
+                <span>行数: <span id="line-count">0</span></span>
+                <span>字符数: <span id="char-count">0</span></span>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">处理结果</span>
+                <div class="buttons">
+                    <button id="format-btn">格式化</button>
+                    <button id="minify-btn">压缩</button>
+                    <button id="copy-btn" class="copy">复制</button>
+                </div>
+            </div>
+            <div class="panel-content">
+                <div id="json-display"></div>
+            </div>
+            <div class="status-bar">
+                <span>状态: <span id="status">等待输入</span></span>
+                <span class="error-message" id="error-message"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const jsonInput = document.getElementById('json-input');
+            const jsonDisplay = document.getElementById('json-display');
+            const formatBtn = document.getElementById('format-btn');
+            const minifyBtn = document.getElementById('minify-btn');
+            const copyBtn = document.getElementById('copy-btn');
+            const statusElement = document.getElementById('status');
+            const errorElement = document.getElementById('error-message');
+            const lineCountElement = document.getElementById('line-count');
+            const charCountElement = document.getElementById('char-count');
+            
+            let currentJson = null;
+            let isFormatted = true;
+            
+            // 更新状态信息
+            function updateStatus(message, isError = false) {
+                statusElement.textContent = message;
+                if (isError) {
+                    statusElement.style.color = '#f44336';
+                } else {
+                    statusElement.style.color = '#666';
+                }
+            }
+            
+            // 更新输入统计
+            function updateInputStats() {
+                const text = jsonInput.value;
+                const lines = text.split('\n').length;
+                const chars = text.length;
+                
+                lineCountElement.textContent = lines;
+                charCountElement.textContent = chars;
+            }
+            
+            // 初始状态
+            updateInputStats();
+            
+            // 输入事件监听
+            jsonInput.addEventListener('input', function() {
+                updateInputStats();
+                processJson();
+            });
+            
+            // 格式化按钮
+            formatBtn.addEventListener('click', function() {
+                isFormatted = true;
+                renderJson(currentJson);
+            });
+            
+            // 压缩按钮
+            minifyBtn.addEventListener('click', function() {
+                isFormatted = false;
+                renderJson(currentJson);
+            });
+            
+            // 复制按钮
+            copyBtn.addEventListener('click', function() {
+                if (currentJson) {
+                    const textToCopy = isFormatted ? 
+                        JSON.stringify(currentJson, null, 2) : 
+                        JSON.stringify(currentJson);
+                    
+                    navigator.clipboard.writeText(textToCopy)
+                        .then(() => {
+                            updateStatus('已复制到剪贴板');
+                            setTimeout(() => updateStatus('就绪'), 2000);
+                        })
+                        .catch(err => {
+                            updateStatus('复制失败', true);
+                            errorElement.textContent = err.message;
+                        });
+                }
+            });
+            
+            // 处理JSON
+            function processJson() {
+                const text = jsonInput.value.trim();
+                
+                if (!text) {
+                    jsonDisplay.innerHTML = '';
+                    currentJson = null;
+                    updateStatus('就绪');
+                    errorElement.textContent = '';
+                    return;
+                }
+                
+                try {
+                    currentJson = JSON.parse(text);
+                    renderJson(currentJson);
+                    updateStatus('就绪');
+                    errorElement.textContent = '';
+                } catch (err) {
+                    currentJson = null;
+                    jsonDisplay.innerHTML = `<span class="error">JSON解析错误: ${err.message}</span>`;
+                    updateStatus('解析错误', true);
+                    errorElement.textContent = err.message;
+                }
+            }
+            
+            // 渲染JSON
+            function renderJson(obj) {
+                if (!obj) return;
+                
+                if (isFormatted) {
+                    jsonDisplay.innerHTML = formatJson(obj);
+                    addCollapseListeners();
+                } else {
+                    jsonDisplay.textContent = JSON.stringify(obj);
+                }
+            }
+            
+            // 格式化JSON（带折叠功能）
+            function formatJson(obj) {
+                return `<div class="json-container">${formatObject(obj, 0)}</div>`;
+            }
+            
+            // 格式化对象
+            function formatObject(obj, indentLevel) {
+                if (obj === null) {
+                    return `<span class="null">null</span>`;
+                }
+                
+                if (Array.isArray(obj)) {
+                    if (obj.length === 0) {
+                        return `[]`;
+                    }
+                    
+                    let html = `<div class="json-block">`;
+                    html += `<span class="collapsible">-</span>`;
+                    html += `<span class="json-item">${addIndent(indentLevel)}[</span>`;
+                    html += `<div>`;
+                    
+                    obj.forEach((item, index) => {
+                        html += `<span class="json-item">${addIndent(indentLevel + 1)}${formatObject(item, indentLevel + 1)}`;
+                        if (index < obj.length - 1) {
+                            html += ',';
+                        }
+                        html += `</span>`;
+                    });
+                    
+                    html += `<span class="json-item">${addIndent(indentLevel)}]</span></div></div>`;
+                    return html;
+                }
+                
+                if (typeof obj === 'object') {
+                    const keys = Object.keys(obj);
+                    if (keys.length === 0) {
+                        return `{}`;
+                    }
+                    
+                    let html = `<div class="json-block">`;
+                    html += `<span class="collapsible">-</span>`;
+                    html += `<span class="json-item">${addIndent(indentLevel)}{</span>`;
+                    html += `<div>`;
+                    
+                    keys.forEach((key, index) => {
+                        html += `<span class="json-item">${addIndent(indentLevel + 1)}<span class="key">"${key}"</span>: ${formatObject(obj[key], indentLevel + 1)}`;
+                        if (index < keys.length - 1) {
+                            html += ',';
+                        }
+                        html += `</span>`;
+                    });
+                    
+                    html += `<span class="json-item">${addIndent(indentLevel)}}</span></div></div>`;
+                    return html;
+                }
+                
+                if (typeof obj === 'string') {
+                    return `<span class="string">"${obj}"</span>`;
+                }
+                
+                if (typeof obj === 'number') {
+                    return `<span class="number">${obj}</span>`;
+                }
+                
+                if (typeof obj === 'boolean') {
+                    return `<span class="boolean">${obj}</span>`;
+                }
+                
+                return '';
+            }
+            
+            // 添加缩进
+            function addIndent(level) {
+                return '  '.repeat(level);
+            }
+            
+            // 添加折叠事件监听
+            function addCollapseListeners() {
+                const collapsibles = document.querySelectorAll('.collapsible');
+                collapsibles.forEach(coll => {
+                    coll.addEventListener('click', function() {
+                        // 找到父元素中的div（要折叠的内容）
+                        const parentBlock = this.parentElement;
+                        const content = parentBlock.querySelector('div');
+                        if (content.classList.contains('folded')) {
+                            content.classList.remove('folded');
+                            this.textContent = '-';
+                            this.classList.remove('collapsed');
+                        } else {
+                            content.classList.add('folded');
+                            this.textContent = '+';
+                            this.classList.add('collapsed');
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>
