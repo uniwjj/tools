@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -176,7 +175,7 @@
     </div>
     
     <footer>
-        <p>© 2023 开发者工具箱 | 为您提供便捷的开发体验</p>
+        <p>© 2025 开发者工具箱 | 为您提供便捷的开发体验</p>
     </footer>
 </body>
 </html>
